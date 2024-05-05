@@ -1,5 +1,5 @@
 use super::section::SectionCode;
-use nom::{IResult, number::complete::{le_u32, le_u8}, bytes::complete::tag, sequence::pair};
+use nom::{IResult, number::complete::{le_u32, le_u8}, bytes::complete::{tag, take}, sequence::pair};
 use nom_leb128::leb128_u32;
 use num_traits::FromPrimitive as _;
 
@@ -32,6 +32,22 @@ impl Module {
             magic: "\0asm".into(),
             version,
         };
+
+        let mut remaining = input;
+
+        while !remaining.is_empty() {
+            match decode_section_header(remaining) {
+                Ok((input, (code, size))) => {
+                    let (rest, section_contents) = take(size)(input)?;
+
+                    match code {
+                        _ => todo!(),
+                    };
+                    remaining = rest;
+                }
+                Err(err) => return Err(err),
+            }
+        }
         Ok((input, module))
     }
 }
