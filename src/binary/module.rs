@@ -1,5 +1,5 @@
-use super::{section::{SectionCode, Function}, types::FuncType, instruction::Instruction};
-use nom::{IResult, number::complete::{le_u32, le_u8}, bytes::complete::{tag, take}, sequence::pair};
+use super::{section::{SectionCode, Function}, types::{FuncType, ValueType}, instruction::Instruction};
+use nom::{IResult, number::complete::{le_u32, le_u8}, bytes::complete::{tag, take}, sequence::pair, multi::many0};
 use nom_leb128::leb128_u32;
 use num_traits::FromPrimitive as _;
 
@@ -82,8 +82,35 @@ fn decode_section_header(input: &[u8]) -> IResult<&[u8], (SectionCode, u32)> {
     ))
 }
 
-fn decode_type_section(_input: &[u8]) -> IResult<&[u8], Vec<FuncType>> {
-    let func_types = vec![FuncType::default()];
+fn decode_value_type(input: &[u8]) -> IResult<&[u8], ValueType> {
+    let (input, value_type) = le_u8(input)?;
+    Ok((input, value_type.into()))
+}
+
+fn decode_type_section(input: &[u8]) -> IResult<&[u8], Vec<FuncType>> {
+    let mut func_types: Vec<FuncType> = vec![];
+
+    let (mut input, count) = leb128_u32(input)?; // 1
+
+    for _ in 0..count {
+        let (rest, _) = le_u8(input)?; // 2
+        let mut func = FuncType::default();
+
+        let (rest, size) = leb128_u32(rest)?; // 3
+        let (rest, types) = take(size)(rest)?;
+        let (_, types) = many0(decode_value_type)(types)?; // 4
+        func.params = types;
+
+        let (rest, size) = leb128_u32(rest)?; // 5
+        let (rest, types) = take(size)(rest)?;
+        let (_, types) = many0(decode_value_type)(types)?; // 6
+        func.results = types;
+
+    // TODO: 引数と戻り値のデコード
+        func_types.push(func);
+        input = rest;
+    }
+
     Ok((&[], func_types))
 }
 
@@ -111,7 +138,7 @@ fn decode_code_section(_input: &[u8]) -> IResult<&[u8], Vec<Function>> {
 
 #[cfg(test)]
 mod tests {
-    use crate::binary::{module::Module, instruction::Instruction, section::Function, types::FuncType};
+    use crate::binary::{module::Module, instruction::Instruction, section::Function, types::{FuncType, ValueType}};
     use anyhow::Result;
 
     #[test]
@@ -130,6 +157,25 @@ mod tests {
             module,
             Module {
                 type_section: Some(vec![FuncType::default()]),
+                function_section: Some(vec![0]),
+                code_section: Some(vec![Function {locals:vec![], code:vec![Instruction::End] }]),
+                ..Default::default()
+            }
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn decode_func_param() -> Result<()> {
+        let wasm = wat::parse_str("(module (func (param i32)))")?;
+        let module = Module::new(&wasm)?;
+        assert_eq!(
+            module,
+            Module {
+                type_section: Some(vec![FuncType {
+                    params: vec![ValueType::I32],
+                    results: vec![],
+                }]),
                 function_section: Some(vec![0]),
                 code_section: Some(vec![Function {locals:vec![], code:vec![Instruction::End] }]),
                 ..Default::default()
