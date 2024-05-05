@@ -1,4 +1,4 @@
-use super::{section::SectionCode, types::FuncType};
+use super::{section::{SectionCode, Function}, types::FuncType, instruction::Instruction};
 use nom::{IResult, number::complete::{le_u32, le_u8}, bytes::complete::{tag, take}, sequence::pair};
 use nom_leb128::leb128_u32;
 use num_traits::FromPrimitive as _;
@@ -9,6 +9,7 @@ pub struct Module {
     pub version: u32,
     pub type_section: Option<Vec<FuncType>>,
     pub function_section: Option<Vec<u32>>,
+    pub code_section: Option<Vec<Function>>,
 }
 
 impl Default for Module {
@@ -18,6 +19,7 @@ impl Default for Module {
             version: 1,
             type_section: None,
             function_section: None,
+            code_section: None,
         }
     }
 }
@@ -53,6 +55,10 @@ impl Module {
                         SectionCode::Function => {
                             let (_, func_idx_list) = decode_function_section(section_contents)?;
                             module.function_section = Some(func_idx_list);
+                        }
+                        SectionCode::Code => {
+                            let (_, functions) = decode_code_section(section_contents)?;
+                            module.code_section = Some(functions);
                         }
                         _ => todo!(),
                     };
@@ -94,9 +100,18 @@ fn decode_function_section(input: &[u8]) -> IResult<&[u8], Vec<u32>> {
     Ok((input, func_idx_list))
 }
 
+fn decode_code_section(_input: &[u8]) -> IResult<&[u8], Vec<Function>> {
+    let functions = vec![Function{
+        locals: vec![],
+        code: vec![Instruction::End],
+    }];
+
+    Ok((&[], functions))
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::binary::module::Module;
+    use crate::binary::{module::Module, instruction::Instruction, section::Function, types::FuncType};
     use anyhow::Result;
 
     #[test]
@@ -104,6 +119,22 @@ mod tests {
         let wasm = wat::parse_str("(module)")?;
         let module = Module::new(&wasm)?;
         assert_eq!(module, Module::default());
+        Ok(())
+    }
+
+    #[test]
+    fn decode_func() -> Result<()> {
+        let wasm = wat::parse_str("(module (func))")?;
+        let module = Module::new(&wasm)?;
+        assert_eq!(
+            module,
+            Module {
+                type_section: Some(vec![FuncType::default()]),
+                function_section: Some(vec![0]),
+                code_section: Some(vec![Function {locals:vec![], code:vec![Instruction::End] }]),
+                ..Default::default()
+            }
+        );
         Ok(())
     }
 }

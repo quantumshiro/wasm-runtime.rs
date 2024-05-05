@@ -19,3 +19,9 @@ impl From<u8> for ValueType {
         }
     }
 }
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct FunctionLocal {
+    pub type_count: u32,
+    pub value_type: ValueType,
+}

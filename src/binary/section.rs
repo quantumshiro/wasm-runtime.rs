@@ -1,4 +1,5 @@
 use num_derive::FromPrimitive;
+use super::{instruction::Instruction, types::FunctionLocal};
 
 #[derive(Debug, PartialEq, Eq, FromPrimitive)]
 pub enum SectionCode {
@@ -9,4 +10,10 @@ pub enum SectionCode {
     Export = 0x07,
     Code = 0x0a,
     Data = 0x0b,
+}
+
+#[derive(Default, Debug, PartialEq, Eq, Clone)]
+pub struct Function {
+    pub locals: Vec<FunctionLocal>,
+    pub code: Vec<Instruction>,
 }
