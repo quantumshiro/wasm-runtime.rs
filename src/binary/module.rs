@@ -21,6 +21,7 @@ pub struct Module {
     pub type_section: Option<Vec<FuncType>>,
     pub function_section: Option<Vec<u32>>,
     pub code_section: Option<Vec<Function>>,
+    pub export_section: Option<Vec<Export>>,
 }
 
 impl Default for Module {
@@ -31,6 +32,7 @@ impl Default for Module {
             type_section: None,
             function_section: None,
             code_section: None,
+            export_section: None,
         }
     }
 }
@@ -71,6 +73,10 @@ impl Module {
                         SectionCode::Code => {
                             let (_, functions) = decode_code_section(section_contents)?;
                             module.code_section = Some(functions);
+                        }
+                        SectionCode::Export => {
+                            let (_, exports) = decode_export_section(section_contents)?;
+                            module.export_section = Some(exports);
                         }
                         _ => todo!(),
                     };
@@ -219,7 +225,7 @@ mod tests {
         instruction::Instruction,
         module::Module,
         section::Function,
-        types::{FuncType, FunctionLocal, ValueType},
+        types::{FuncType, FunctionLocal, ValueType, Export, ExportDesc},
     };
     use anyhow::Result;
 
@@ -320,6 +326,10 @@ mod tests {
                         Instruction::I32Add,
                         Instruction::End
                     ],
+                }]),
+                export_section: Some(vec![Export {
+                    name: "add".into(),
+                    desc: ExportDesc::Func(0),
                 }]),
                 ..Default::default()
             }
