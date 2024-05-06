@@ -63,7 +63,7 @@ impl Module {
 
                     match code {
                         SectionCode::Custom => {
-                            todo!();
+                            
                         }
                         SectionCode::Type => {
                             let (_, types) = decode_type_section(section_contents)?;
