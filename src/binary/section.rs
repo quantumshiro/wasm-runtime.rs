@@ -1,5 +1,5 @@
-use num_derive::FromPrimitive;
 use super::{instruction::Instruction, types::FunctionLocal};
+use num_derive::FromPrimitive;
 
 #[derive(Debug, PartialEq, Eq, FromPrimitive)]
 pub enum SectionCode {

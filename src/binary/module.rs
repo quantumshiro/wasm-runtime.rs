@@ -1,5 +1,16 @@
-use super::{instruction::{self, Instruction}, opcode::Opcode, section::{Function, SectionCode}, types::{FuncType, FunctionLocal, ValueType}};
-use nom::{IResult, number::complete::{le_u32, le_u8}, bytes::complete::{tag, take}, sequence::pair, multi::many0};
+use super::{
+    instruction::Instruction,
+    opcode::Opcode,
+    section::{Function, SectionCode},
+    types::{FuncType, FunctionLocal, ValueType},
+};
+use nom::{
+    bytes::complete::{tag, take},
+    multi::many0,
+    number::complete::{le_u32, le_u8},
+    sequence::pair,
+    IResult,
+};
 use nom_leb128::leb128_u32;
 use num_traits::FromPrimitive as _;
 
@@ -26,7 +37,8 @@ impl Default for Module {
 
 impl Module {
     pub fn new(input: &[u8]) -> anyhow::Result<Module> {
-        let (_, module) = Module::decode(input).map_err(|_| anyhow::anyhow!("Failed to decode module"))?;
+        let (_, module) =
+            Module::decode(input).map_err(|_| anyhow::anyhow!("Failed to decode module"))?;
         Ok(module)
     }
 
@@ -48,7 +60,7 @@ impl Module {
                     let (rest, section_contents) = take(size)(input)?;
 
                     match code {
-                       SectionCode::Type => {
+                        SectionCode::Type => {
                             let (_, types) = decode_type_section(section_contents)?;
                             module.type_section = Some(types);
                         }
@@ -106,7 +118,7 @@ fn decode_type_section(input: &[u8]) -> IResult<&[u8], Vec<FuncType>> {
         let (_, types) = many0(decode_value_type)(types)?; // 6
         func.results = types;
 
-    // TODO: 引数と戻り値のデコード
+        // TODO: 引数と戻り値のデコード
         func_types.push(func);
         input = rest;
     }
@@ -182,7 +194,12 @@ fn decode_instructions(input: &[u8]) -> IResult<&[u8], Instruction> {
 
 #[cfg(test)]
 mod tests {
-    use crate::binary::{module::Module, instruction::Instruction, section::Function, types::{FuncType, ValueType, FunctionLocal}};
+    use crate::binary::{
+        instruction::Instruction,
+        module::Module,
+        section::Function,
+        types::{FuncType, FunctionLocal, ValueType},
+    };
     use anyhow::Result;
 
     #[test]
@@ -202,7 +219,10 @@ mod tests {
             Module {
                 type_section: Some(vec![FuncType::default()]),
                 function_section: Some(vec![0]),
-                code_section: Some(vec![Function {locals:vec![], code:vec![Instruction::End] }]),
+                code_section: Some(vec![Function {
+                    locals: vec![],
+                    code: vec![Instruction::End]
+                }]),
                 ..Default::default()
             }
         );
@@ -221,7 +241,10 @@ mod tests {
                     results: vec![],
                 }]),
                 function_section: Some(vec![0]),
-                code_section: Some(vec![Function {locals:vec![], code:vec![Instruction::End] }]),
+                code_section: Some(vec![Function {
+                    locals: vec![],
+                    code: vec![Instruction::End]
+                }]),
                 ..Default::default()
             }
         );

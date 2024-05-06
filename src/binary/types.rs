@@ -1,4 +1,4 @@
-#[derive(Debug, Default, PartialEq , Eq, Clone)]
+#[derive(Debug, Default, PartialEq, Eq, Clone)]
 pub struct FuncType {
     pub params: Vec<ValueType>,
     pub results: Vec<ValueType>,
