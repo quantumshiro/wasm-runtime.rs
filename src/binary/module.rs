@@ -1,4 +1,4 @@
-use super::{section::{SectionCode, Function}, types::{FuncType, ValueType, FunctionLocal}, instruction::Instruction};
+use super::{instruction::{self, Instruction}, opcode::Opcode, section::{Function, SectionCode}, types::{FuncType, FunctionLocal, ValueType}};
 use nom::{IResult, number::complete::{le_u32, le_u8}, bytes::complete::{tag, take}, sequence::pair, multi::many0};
 use nom_leb128::leb128_u32;
 use num_traits::FromPrimitive as _;
@@ -155,9 +155,29 @@ fn decode_function_body(input: &[u8]) -> IResult<&[u8], Function> {
         input = rest;
     }
 
-    body.code = vec![Instruction::End];
+    let mut remaining = input;
+
+    while !remaining.is_empty() {
+        let (rest, instruction) = decode_instructions(remaining)?;
+        body.code.push(instruction);
+        remaining = rest;
+    }
 
     Ok((&[], body))
+}
+
+fn decode_instructions(input: &[u8]) -> IResult<&[u8], Instruction> {
+    let (input, byte) = le_u8(input)?;
+    let opcode = Opcode::from_u8(byte).unwrap_or_else(|| panic!("unexpected opcode: {}", byte));
+    let (rest, instruction) = match opcode {
+        Opcode::LocalGet => {
+            let (rest, index) = leb128_u32(input)?;
+            (rest, Instruction::LocalGet(index))
+        }
+        Opcode::I32Add => (input, Instruction::I32Add),
+        Opcode::End => (input, Instruction::End),
+    };
+    Ok((rest, instruction))
 }
 
 #[cfg(test)]
@@ -229,6 +249,33 @@ mod tests {
                         },
                     ],
                     code: vec![Instruction::End],
+                }]),
+                ..Default::default()
+            }
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn decode_func_add() -> Result<()> {
+        let wasm = wat::parse_file("src/fixtures/func_add.wat")?;
+        let module = Module::new(&wasm)?;
+        assert_eq!(
+            module,
+            Module {
+                type_section: Some(vec![FuncType {
+                    params: vec![ValueType::I32, ValueType::I32],
+                    results: vec![ValueType::I32],
+                }]),
+                function_section: Some(vec![0]),
+                code_section: Some(vec![Function {
+                    locals: vec![],
+                    code: vec![
+                        Instruction::LocalGet(0),
+                        Instruction::LocalGet(1),
+                        Instruction::I32Add,
+                        Instruction::End
+                    ],
                 }]),
                 ..Default::default()
             }
