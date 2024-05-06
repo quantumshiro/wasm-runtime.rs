@@ -2,7 +2,7 @@ use super::{
     instruction::Instruction,
     opcode::Opcode,
     section::{Function, SectionCode},
-    types::{FuncType, FunctionLocal, ValueType},
+    types::{FuncType, FunctionLocal, ValueType, ExportDesc, Export},
 };
 use nom::{
     bytes::complete::{tag, take},
@@ -190,6 +190,27 @@ fn decode_instructions(input: &[u8]) -> IResult<&[u8], Instruction> {
         Opcode::End => (input, Instruction::End),
     };
     Ok((rest, instruction))
+}
+
+fn decode_export_section(input: &[u8]) -> IResult<&[u8], Vec<Export>> {
+    let (mut input, count) = leb128_u32(input)?;
+    let mut exports = vec![];
+
+    for _ in 0..count {
+        let (rest, name_len) = leb128_u32(input)?; 
+        let (rest, name_bytes) = take(name_len)(rest)?; 
+        let name = String::from_utf8(name_bytes.to_vec()).expect("invalid utf-8 string"); 
+        let (rest, export_kind) = le_u8(rest)?;
+        let (rest, idx) = leb128_u32(rest)?;
+        let desc = match export_kind {
+            0x00 => ExportDesc::Func(idx),
+            _ => unimplemented!("unsupported export kind: {:X}", export_kind),
+        };
+        exports.push(Export { name, desc }); 
+        input = rest;
+    }
+
+    Ok((input, exports))
 }
 
 #[cfg(test)]
