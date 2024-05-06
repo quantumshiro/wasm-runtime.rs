@@ -65,6 +65,7 @@ impl Runtime {
                     let Frame { sp, arity, .. } = frame;
                     stack_unwind(&mut self.stack, sp, arity)?;
                 }
+                _ => todo!(),
             }
         }
         Ok(())

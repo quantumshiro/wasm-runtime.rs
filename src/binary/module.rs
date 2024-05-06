@@ -62,6 +62,9 @@ impl Module {
                     let (rest, section_contents) = take(size)(input)?;
 
                     match code {
+                        SectionCode::Custom => {
+                            todo!();
+                        }
                         SectionCode::Type => {
                             let (_, types) = decode_type_section(section_contents)?;
                             module.type_section = Some(types);
@@ -124,7 +127,7 @@ fn decode_type_section(input: &[u8]) -> IResult<&[u8], Vec<FuncType>> {
         let (_, types) = many0(decode_value_type)(types)?; // 6
         func.results = types;
 
-        // TODO: 引数と戻り値のデコード
+
         func_types.push(func);
         input = rest;
     }
@@ -194,6 +197,10 @@ fn decode_instructions(input: &[u8]) -> IResult<&[u8], Instruction> {
         }
         Opcode::I32Add => (input, Instruction::I32Add),
         Opcode::End => (input, Instruction::End),
+        Opcode::Call => {
+            let (rest, index) = leb128_u32(input)?;
+            (rest, Instruction::Call(index))
+        }
     };
     Ok((rest, instruction))
 }
@@ -329,6 +336,47 @@ mod tests {
                 }]),
                 export_section: Some(vec![Export {
                     name: "add".into(),
+                    desc: ExportDesc::Func(0),
+                }]),
+                ..Default::default()
+            }
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn decode_func_call() -> Result<()> {
+        let wasm = wat::parse_file("src/fixtures/func_call.wat")?;
+        let module = Module::new(&wasm)?;
+        assert_eq!(
+            module,
+            Module {
+                type_section: Some(vec![FuncType {
+                    params: vec![ValueType::I32],
+                    results: vec![ValueType::I32],
+                },]),
+                function_section: Some(vec![0, 0]),
+                code_section: Some(vec![
+                    Function {
+                        locals: vec![],
+                        code: vec![
+                            Instruction::LocalGet(0),
+                            Instruction::Call(1),
+                            Instruction::End
+                        ],
+                    },
+                    Function {
+                        locals: vec![],
+                        code: vec![
+                            Instruction::LocalGet(0),
+                            Instruction::LocalGet(0),
+                            Instruction::I32Add,
+                            Instruction::End
+                        ],
+                    }
+                ]),
+                export_section: Some(vec![Export {
+                    name: "call_doubler".into(),
                     desc: ExportDesc::Func(0),
                 }]),
                 ..Default::default()
