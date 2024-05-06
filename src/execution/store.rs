@@ -1,7 +1,7 @@
 use crate::binary::{
     instruction::Instruction,
     module::Module,
-    types::{FuncType, ValueType, ExportDesc},
+    types::{ExportDesc, FuncType, ValueType},
 };
 use anyhow::{bail, Result};
 use std::collections::HashMap;
@@ -88,6 +88,9 @@ impl Store {
         };
         let module_inst = ModuleInst { exports };
 
-        Ok(Store { funcs, module: module_inst })
+        Ok(Store {
+            funcs,
+            module: module_inst,
+        })
     }
 }
