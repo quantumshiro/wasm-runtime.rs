@@ -2,7 +2,7 @@ use super::{
     instruction::Instruction,
     opcode::Opcode,
     section::{Function, SectionCode},
-    types::{FuncType, FunctionLocal, ValueType, ExportDesc, Export},
+    types::{Export, ExportDesc, FuncType, FunctionLocal, ValueType},
 };
 use nom::{
     bytes::complete::{tag, take},
@@ -203,16 +203,16 @@ fn decode_export_section(input: &[u8]) -> IResult<&[u8], Vec<Export>> {
     let mut exports = vec![];
 
     for _ in 0..count {
-        let (rest, name_len) = leb128_u32(input)?; 
-        let (rest, name_bytes) = take(name_len)(rest)?; 
-        let name = String::from_utf8(name_bytes.to_vec()).expect("invalid utf-8 string"); 
+        let (rest, name_len) = leb128_u32(input)?;
+        let (rest, name_bytes) = take(name_len)(rest)?;
+        let name = String::from_utf8(name_bytes.to_vec()).expect("invalid utf-8 string");
         let (rest, export_kind) = le_u8(rest)?;
         let (rest, idx) = leb128_u32(rest)?;
         let desc = match export_kind {
             0x00 => ExportDesc::Func(idx),
             _ => unimplemented!("unsupported export kind: {:X}", export_kind),
         };
-        exports.push(Export { name, desc }); 
+        exports.push(Export { name, desc });
         input = rest;
     }
 
@@ -225,7 +225,7 @@ mod tests {
         instruction::Instruction,
         module::Module,
         section::Function,
-        types::{FuncType, FunctionLocal, ValueType, Export, ExportDesc},
+        types::{Export, ExportDesc, FuncType, FunctionLocal, ValueType},
     };
     use anyhow::Result;
 
