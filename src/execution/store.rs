@@ -1,7 +1,7 @@
 use crate::binary::{
     instruction::Instruction,
-    types::{FuncType, ValueType},
     module::Module,
+    types::{FuncType, ValueType},
 };
 use anyhow::{bail, Result};
 
