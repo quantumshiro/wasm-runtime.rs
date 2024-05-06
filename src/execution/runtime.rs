@@ -1,5 +1,9 @@
-use super::{store::Store, value::Value};
-use crate::binary::{instruction::{self, Instruction}, module::Module};
+use super::{store::{Store, InternalFuncInst}, value::Value};
+use crate::binary::{
+    instruction::Instruction,
+    module::Module,
+    types::ValueType,
+};
 use anyhow::{bail, Result};
 
 #[derive(Default)]
@@ -27,7 +31,7 @@ impl Runtime {
             ..Default::default()
         })
     }
-    
+
     fn execution(&mut self) -> Result<()> {
         loop {
             let Some(frame) = self.call_stack.last_mut() else {
@@ -65,6 +69,48 @@ impl Runtime {
             }
         }
         Ok(())
+    }
+
+    fn invoke_internal(&mut self, func: InternalFuncInst) -> Result<Option<Value>> {
+        let bottom = self.stack.len() - func.func_type.params.len(); // 1
+        let mut locals = self.stack.split_off(bottom); // 2
+
+        for local in func.code.locals.iter() { // 3
+            match local {
+                ValueType::I32 => locals.push(Value::I32(0)),
+                ValueType::I64 => locals.push(Value::I64(0)),
+            }
+        }
+
+        let arity = func.func_type.results.len(); // 4
+
+        let frame = Frame {
+            pc: -1,
+            sp: self.stack.len(),
+            insts: func.code.body.clone(),
+            arity,
+            locals,
+        };
+
+        self.call_stack.push(frame);
+
+        if let Err(e) = self.execution() {
+            self.cleanup();
+            bail!("failed to execute instructions: {}", e)
+        };
+
+        if arity > 0 {
+            let Some(value) = self.stack.pop() else {
+                bail!("not found return value")
+            };
+            return Ok(Some(value));
+        }
+        Ok(None)
+    }
+
+    fn cleanup(&mut self) {
+        self.stack = vec![];
+        self.call_stack = vec![];
     }
 }
 
