@@ -25,3 +25,14 @@ pub struct FunctionLocal {
     pub type_count: u32,
     pub value_type: ValueType,
 }
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub enum ExportDesc {
+    Func(u32),
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct Export {
+    pub name: String,
+    pub desc: ExportDesc,
+}
