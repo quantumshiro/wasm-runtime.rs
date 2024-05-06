@@ -1,4 +1,4 @@
-use super::{store::{Store, InternalFuncInst}, value::Value};
+use super::{store::{Store, InternalFuncInst, FuncInst}, value::Value};
 use crate::binary::{
     instruction::Instruction,
     module::Module,
@@ -71,18 +71,30 @@ impl Runtime {
         Ok(())
     }
 
-    fn invoke_internal(&mut self, func: InternalFuncInst) -> Result<Option<Value>> {
-        let bottom = self.stack.len() - func.func_type.params.len(); // 1
-        let mut locals = self.stack.split_off(bottom); // 2
+    pub fn call(&mut self, index: usize, args: Vec<Value>) -> Result<Option<Value>> {
+        let Some(func_inst) = self.store.funcs.get(index) else {
+            bail!("not found function")
+        };
+        for arg in args {
+            self.stack.push(arg);
+        }
+        match func_inst {
+            FuncInst::Internal(func) => self.invoke_internal(func.clone()),
+        }
+    }
 
-        for local in func.code.locals.iter() { // 3
+    fn invoke_internal(&mut self, func: InternalFuncInst) -> Result<Option<Value>> {
+        let bottom = self.stack.len() - func.func_type.params.len(); 
+        let mut locals = self.stack.split_off(bottom); 
+
+        for local in func.code.locals.iter() { 
             match local {
                 ValueType::I32 => locals.push(Value::I32(0)),
                 ValueType::I64 => locals.push(Value::I64(0)),
             }
         }
 
-        let arity = func.func_type.results.len(); // 4
+        let arity = func.func_type.results.len(); 
 
         let frame = Frame {
             pc: -1,
@@ -125,4 +137,25 @@ pub fn stack_unwind(stack: &mut Vec<Value>, sp: usize, arity: usize) -> Result<(
         stack.drain(sp..);
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Runtime;
+    use crate::execution::value::Value;
+    use anyhow::Result;
+
+    #[test]
+    fn execute_i32_add() -> Result<()> {
+        let wasm = wat::parse_file("src/fixtures/func_add.wat")?;
+        let mut runtime = Runtime::instantiate(wasm)?;
+        let tests = vec![(2, 3, 5), (10, 5, 15), (1, 1, 2)];
+
+        for (left, right, want) in tests {
+            let args = vec![Value::I32(left), Value::I32(right)];
+            let result = runtime.call(0, args)?;
+            assert_eq!(result, Some(Value::I32(want)));
+        }
+        Ok(())
+    }
 }
