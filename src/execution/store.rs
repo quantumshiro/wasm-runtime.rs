@@ -37,7 +37,7 @@ impl Store {
         let mut funcs = vec![];
 
         if let Some(ref code_section) = module.code_section {
-            for (func_body, type_idx) in code_section.iter().zip(func_type_idxs.into_iter()) {
+            for (func_body, type_idx) in code_section.iter().zip(func_type_indexs.into_iter()) {
                 let Some(ref func_types) = module.type_section else {
                     bail!("not found type_section")
                 };
